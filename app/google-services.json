@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "127363346196",
+    "firebase_url": "https://androidtripadvisor.firebaseio.com",
+    "project_id": "androidtripadvisor",
+    "storage_bucket": "androidtripadvisor.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:127363346196:android:afecd42c262271955b1c01",
+        "android_client_info": {
+          "package_name": "com.googlemaps.TripAdvisor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "127363346196-tge78t43mdd5tuhcsuuv48jhh7stvvva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAXL1NgkIO8hm_DqahthBW9MSAv8a05U8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "127363346196-tge78t43mdd5tuhcsuuv48jhh7stvvva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:127363346196:android:421c29770a3af1f45b1c01",
+        "android_client_info": {
+          "package_name": "com.googlemapsproject.tripadvisor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "127363346196-tge78t43mdd5tuhcsuuv48jhh7stvvva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAXL1NgkIO8hm_DqahthBW9MSAv8a05U8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "127363346196-tge78t43mdd5tuhcsuuv48jhh7stvvva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:127363346196:android:1bada1d953d1f61d5b1c01",
+        "android_client_info": {
+          "package_name": "com.mapsproject.tripadvisor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "127363346196-tge78t43mdd5tuhcsuuv48jhh7stvvva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAXL1NgkIO8hm_DqahthBW9MSAv8a05U8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "127363346196-tge78t43mdd5tuhcsuuv48jhh7stvvva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
