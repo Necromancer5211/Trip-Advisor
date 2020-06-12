@@ -4,6 +4,9 @@ import android.animation.ObjectAnimator;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,15 +18,25 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
+import android.widget.AdapterView;
+import android.widget.AutoCompleteTextView;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.maps.model.TravelMode;
 import com.googlemapsproject.tripadvisor.R;
+import com.googlemapsproject.tripadvisor.adapters.PlacesAutoSuggestionAdapter;
 import com.googlemapsproject.tripadvisor.adapters.UserRecyclerAdapter;
 import com.googlemapsproject.tripadvisor.models.ClusterMarker;
 import com.googlemapsproject.tripadvisor.models.PolylineData;
@@ -55,6 +68,7 @@ import com.google.maps.internal.PolylineEncoding;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -94,6 +108,12 @@ public class UserListFragment extends Fragment implements
     private ArrayList<PolylineData> mPolyLinesData = new ArrayList<>();
     private Marker mSelectedMarker = null;
     private ArrayList<Marker> mTripMarkers = new ArrayList<>();
+    private AutoCompleteTextView mSearchText;
+    private RelativeLayout relativeLayout;
+    private FusedLocationProviderClient mFusedLocationProviderClient;
+    private static final int DEFAULT_ZOOM = 15;
+    ArrayList<String > instructions = new ArrayList<>();
+
 
 
     public static UserListFragment newInstance() {
@@ -110,8 +130,94 @@ public class UserListFragment extends Fragment implements
 
                 final ArrayList<UserLocation> locations = getArguments().getParcelableArrayList(getString(R.string.intent_user_locations));
                 mUserLocations.addAll(locations);
+
             }
         }
+    }
+
+
+    private void initEverything(){
+        Log.d(TAG, "init: Initializing");
+        mSearchText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent keyEvent) {
+                if(actionId == EditorInfo.IME_ACTION_SEARCH
+                        || actionId == EditorInfo.IME_ACTION_DONE
+                        || keyEvent.getAction() == KeyEvent.ACTION_DOWN
+                        || keyEvent.getAction() == KeyEvent.KEYCODE_ENTER){
+                    geoLocate();
+                }
+                return false;
+            }
+
+        });
+        mSearchText.setOnItemClickListener(mAutoCompleteClickListener);
+        mSearchText.setAdapter(new PlacesAutoSuggestionAdapter(getActivity(),android.R.layout.simple_list_item_1));
+        hideSoftKeyboard();
+    }
+
+    private void hideSoftKeyboard(){
+        getActivity().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+    }
+
+    private AdapterView.OnItemClickListener mAutoCompleteClickListener = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            hideSoftKeyboard();
+            Log.d(TAG, "onItemClick: "+mSearchText.getText().toString());
+            geoLocate();
+        }
+    };
+
+    private void geoLocate(){
+        Log.d(TAG, "geoLocate: Geolocating");
+        String searchString = mSearchText.getText().toString();
+        Geocoder geocoder = new Geocoder(getActivity());
+        List<Address> list = new ArrayList<>();
+        try{
+            list = geocoder.getFromLocationName(searchString,1);
+        }catch (IOException e){
+            Log.d(TAG, "geoLocate: Error in geolocating" + e.getMessage());
+        }
+        if(list.size() > 0){
+            Address address = list.get(0);
+            Log.d(TAG, "geoLocate: Found geolocation "+ address);
+            moveMapToLocation(new LatLng(address.getLatitude(),address.getLongitude()),DEFAULT_ZOOM,address.getAddressLine(0));
+        }
+    }
+
+    private void getDeviceLocation(){
+        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(getActivity());
+        try{
+                Task location = mFusedLocationProviderClient.getLastLocation();
+                location.addOnCompleteListener(new OnCompleteListener() {
+                    @Override
+                    public void onComplete(@NonNull Task task) {
+                        if (task.isSuccessful() && task.getResult() != null) {
+                            Log.d(TAG, "onComplete: Found Location");
+                            Location currentLocation = (Location) task.getResult();
+                            moveMapToLocation(new LatLng(currentLocation.getLatitude(),currentLocation.getLongitude()),DEFAULT_ZOOM,"My location");
+                        }
+                        else{
+                            Log.d(TAG, "onComplete: Cannot get location");
+//                            Toast.makeText(Maps,"Unable to get location",Toast.LENGTH_SHORT);
+                        }
+                    }
+                });
+        }catch (SecurityException e){
+            Log.d(TAG, "instance initializer: Security Exception:" + e.getMessage() );
+        }
+    }
+    private void moveMapToLocation(LatLng latLng,float zoom,String title){
+        Log.d(TAG, "moveMapToLocation: Moving camera to current lat" + latLng.latitude + "and lng" + latLng.longitude);
+        mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,zoom));
+        if(title != "My location"){
+            MarkerOptions marker = new MarkerOptions().position(latLng).title(title).snippet("Determine route to this place?");
+            mGoogleMap.addMarker(marker);
+            mGoogleMap.setOnInfoWindowClickListener(UserListFragment.this);
+        }
+        hideSoftKeyboard();
+
     }
 
     @Nullable
@@ -123,6 +229,8 @@ public class UserListFragment extends Fragment implements
         view.findViewById(R.id.btn_full_screen_map).setOnClickListener(this);
         view.findViewById(R.id.btn_reset_map).setOnClickListener(this);
         mMapContainer = view.findViewById(R.id.map_container);
+        mSearchText =  (AutoCompleteTextView) view.findViewById(R.id.input_search);
+        relativeLayout = (RelativeLayout) view.findViewById(R.id.relLayout1);
 
         initUserListRecyclerView();
         initGoogleMap(savedInstanceState);
@@ -301,7 +409,9 @@ public class UserListFragment extends Fragment implements
                 mUserPosition = userLocation;
             }
         }
+
     }
+
 
     private void initGoogleMap(Bundle savedInstanceState) {
         // *** IMPORTANT ***
@@ -444,10 +554,13 @@ public class UserListFragment extends Fragment implements
                 if(mMapLayoutState == MAP_LAYOUT_STATE_CONTRACTED){
                     mMapLayoutState = MAP_LAYOUT_STATE_EXPANDED;
                     expandMapAnimation();
+                    relativeLayout.setVisibility(View.VISIBLE);
+                    initEverything();
                 }
                 else if(mMapLayoutState == MAP_LAYOUT_STATE_EXPANDED){
                     mMapLayoutState = MAP_LAYOUT_STATE_CONTRACTED;
                     contractMapAnimation();
+                    relativeLayout.setVisibility(View.INVISIBLE);
                 }
                 break;
             }
@@ -497,25 +610,46 @@ public class UserListFragment extends Fragment implements
                 marker.hideInfoWindow();
             }
             else{
-
-                final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-                builder.setMessage(marker.getSnippet())
-                        .setCancelable(true)
-                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                            public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                                resetSelectedMarker();
-                                mSelectedMarker = marker;
-                                calculateDirections(marker);
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                            public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                                dialog.cancel();
-                            }
-                        });
-                final AlertDialog alert = builder.create();
-                alert.show();
+                if(marker.getSnippet().contains("Place?")){
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                    builder.setMessage(marker.getSnippet())
+                            .setCancelable(true)
+                            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                                    resetSelectedMarker();
+                                    mSelectedMarker = marker;
+                                    calculateDirections(marker);
+                                    dialog.dismiss();
+                                }
+                            })
+                            .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                                    dialog.cancel();
+                                }
+                            });
+                    final AlertDialog alert = builder.create();
+                    alert.show();
+                }
+                else {
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                    builder.setMessage(marker.getSnippet())
+                            .setCancelable(true)
+                            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                                    resetSelectedMarker();
+                                    mSelectedMarker = marker;
+                                    calculateDirections(marker);
+                                    dialog.dismiss();
+                                }
+                            })
+                            .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                                    dialog.cancel();
+                                }
+                            });
+                    final AlertDialog alert = builder.create();
+                    alert.show();
+                }
             }
         }
 
@@ -531,13 +665,13 @@ public class UserListFragment extends Fragment implements
         DirectionsApiRequest directions = new DirectionsApiRequest(mGeoApiContext);
 
         directions.alternatives(true);
+//        directions.mode(TravelMode.TRANSIT);
         directions.origin(
                 new com.google.maps.model.LatLng(
                         mUserPosition.getGeo_point().getLatitude(),
                         mUserPosition.getGeo_point().getLongitude()
                 )
         );
-//        directions.mode(TravelMode.TRANSIT);
         Log.d(TAG, "calculateDirections: destination: " + destination.toString());
         directions.destination(destination).setCallback(new PendingResult.Callback<DirectionsResult>() {
             @Override
@@ -547,7 +681,7 @@ public class UserListFragment extends Fragment implements
 //                Log.d(TAG, "calculateDirections: distance: " + result.routes[0].legs[0].distance);
 //                Log.d(TAG, "calculateDirections: geocodedWayPoints: " + result.geocodedWaypoints[0].toString());
 
-                Log.d(TAG, "onResult: successfully retrieved directions."+result);
+                Log.d(TAG, "onResult: successfully retrieved directions."+result.routes[0].toString());
                 addPolylinesToMap(result);
             }
 
@@ -558,6 +692,7 @@ public class UserListFragment extends Fragment implements
             }
         });
     }
+
 
     private void resetSelectedMarker(){
         if(mSelectedMarker != null){
@@ -578,17 +713,14 @@ public class UserListFragment extends Fragment implements
             @Override
             public void run() {
                 Log.d(TAG, "run: result routes: " + result.routes.length);
-                if(mPolyLinesData.size() > 0){
-                    for(PolylineData polylineData: mPolyLinesData){
-                        polylineData.getPolyline().remove();
-                    }
-                    mPolyLinesData.clear();
-                    mPolyLinesData = new ArrayList<>();
-                }
-
                 double duration = 999999999;
                 for(DirectionsRoute route: result.routes){
-                    Log.d(TAG, "run: leg: " + route.legs[0].toString());
+                    Log.d(TAG, "routes log: " + route.legs[0].toString());
+                    for(int i =0;i < route.legs[0].steps.length;i++){
+                        Log.d(TAG, "showing steps : \n "+i + ":" +route.legs[0].steps[i].htmlInstructions.replaceAll("\\<.*?>",""));
+                        instructions.add(route.legs[0].steps[i].htmlInstructions.replaceAll("\\<.*?>",""));
+                        instructions.add("\n\n");
+                    }
                     List<com.google.maps.model.LatLng> decodedPath = PolylineEncoding.decode(route.overviewPolyline.getEncodedPath());
 
                     List<LatLng> newDecodedPath = new ArrayList<>();
@@ -612,7 +744,6 @@ public class UserListFragment extends Fragment implements
                     double tempDuration = route.legs[0].duration.inSeconds;
                     if(tempDuration < duration){
                         duration = tempDuration;
-                        onPolylineClick(polyline);
                         zoomRoute(polyline.getPoints());
                     }
 
@@ -665,6 +796,9 @@ public class UserListFragment extends Fragment implements
                 mTripMarkers.add(marker);
 
                 marker.showInfoWindow();
+                Intent intentforinstructuions = new Intent(getActivity(),Instructions.class);
+                intentforinstructuions.putExtra("instructions",instructions.toString());
+                getActivity().startActivity(intentforinstructuions);
             }
             else{
                 polylineData.getPolyline().setColor(ContextCompat.getColor(getActivity(), R.color.darkGrey));

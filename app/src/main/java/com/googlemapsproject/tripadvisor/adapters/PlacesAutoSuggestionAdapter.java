@@ -11,7 +11,7 @@ import com.googlemapsproject.tripadvisor.models.PlacesApi;
 import java.util.ArrayList;
 
 
-class PlacesAutoSuggestionAdapter extends ArrayAdapter implements Filterable {
+public class PlacesAutoSuggestionAdapter extends ArrayAdapter implements Filterable {
     private ArrayList<String> results;
 
     private int resource;
@@ -33,10 +33,10 @@ class PlacesAutoSuggestionAdapter extends ArrayAdapter implements Filterable {
     }
 
     @Override
-    public Filter  getFilter(){
+    public Filter getFilter(){
         Filter filter =  new Filter(){
             @Override
-            protected  FilterResults performFiltering(CharSequence constraint){
+            protected FilterResults performFiltering(CharSequence constraint){
                 FilterResults filterResults = new FilterResults();
                 if(constraint !=null){
                     results = placesapi.autoComplete(constraint.toString());
@@ -48,7 +48,7 @@ class PlacesAutoSuggestionAdapter extends ArrayAdapter implements Filterable {
                 return filterResults;
             }
             @Override
-            protected void publishResults(CharSequence constraint,FilterResults results){
+            protected void publishResults(CharSequence constraint, FilterResults results){
                 if(results != null && results.count>0){
                     notifyDataSetChanged();
                 }
